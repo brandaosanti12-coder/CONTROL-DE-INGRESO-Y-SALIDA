@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; margin: 0; }
+        .caja-formulario { background: white; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: auto; margin-top: 20px; }
+        input[type="number"] { padding: 10px; font-size: 16px; margin-bottom: 20px; text-align: center; width: 80%; border: 1px solid #ccc; border-radius: 5px;}
+        .btn { padding: 15px 30px; font-size: 18px; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 15px;}
+        
+        .btn-entrada { background-color: #4CAF50; }
+        .btn-salida { background-color: #f44336; display: none; }
+        
+        .mensaje-info { margin-top: 20px; font-size: 16px; color: #333; text-align: left; background: #eef; padding: 15px; border-radius: 5px; display: none;}
+        .dato-oculto { display: none; }
+        .alerta-roja { color: #d32f2f; font-weight: bold; }
+        .alerta-verde { color: #2e7d32; font-weight: bold; }
+        
+        a { color: #1976d2; text-decoration: none; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+
+        /* NUEVO: Estilos para el logotipo de la empresa */
+        .logo-empresa {
+            max-width: 120px;
+            height: auto;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        /* Estilos para la ventana flotante (Modal) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); 
+            display: none; 
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-caja {
+            background: white; padding: 25px; border-radius: 12px;
+            max-width: 80%; width: 320px; text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: aparecer 0.3s ease-out;
+        }
+        .modal-caja p { font-size: 16px; color: #333; line-height: 1.5; margin-bottom: 20px; }
+        .btn-modal {
+            background-color: #3498db; color: white; padding: 10px 20px; font-size: 16px;
+            border: none; border-radius: 6px; cursor: pointer; width: 100%;
+        }
+        .btn-modal:hover { background-color: #2980b9; }
+        @keyframes aparecer {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ventana flotante de alertas -->
+    <div id="modal-alerta" class="modal-overlay">
+        <div class="modal-caja">
+            <p id="texto-modal">Aquí va el mensaje...</p>
+            <button class="btn-modal" onclick="cerrarAlerta()">Aceptar</button>
+        </div>
+    </div>
+
+    <div class="caja-formulario">
+        <!-- Etiqueta de imagen para  logotipo -->
+        <img src="logo_itsanet.jpg" alt="Logotipo de Itsanet" class="logo-empresa">
+        
+        <h2>Registro de Asistencia</h2>
+        
+        <p>Ingrese su número de cédula:</p>
+        <input type="number" id="cedula" placeholder="Ej: 1722870332">
+
+        <button id="btn-entrada" class="btn btn-entrada" onclick="procesarMarcacion('entrada')">Marcar Entrada</button>
+        <button id="btn-salida" class="btn btn-salida" onclick="procesarMarcacion('salida')">Marcar Salida</button>
+
+        <div id="info-empleado" class="mensaje-info">
+            <p><strong>Nombre:</strong> <span id="txt-nombre"></span></p>
+            <p><strong>Cédula:</strong> <span id="txt-cedula"></span></p>
+            <p><strong>Ciudad:</strong> <span id="txt-ciudad"></span></p>
+            <hr>
+            <p><strong>Entrada:</strong> <span id="txt-hora-entrada"></span></p>
+            <p id="caja-atraso" class="dato-oculto alerta-roja"><strong>Atraso:</strong> <span id="txt-atraso"></span></p>
+            <p><strong>Ubicación Entrada:</strong> <span id="txt-ubicacion-entrada">Pendiente...</span></p>
+            
+            <div id="datos-salida" class="dato-oculto">
+                <hr>
+                <p><strong>Salida:</strong> <span id="txt-hora-salida"></span></p>
+                <p><strong>Ubicación Salida:</strong> <span id="txt-ubicacion-salida">Pendiente...</span></p>
+                <p><strong>Tiempo Trabajado:</strong> <span id="txt-trabajado"></span></p>
+                <p id="caja-extras" class="dato-oculto alerta-verde"><strong>Horas Extras:</strong> <span id="txt-extras"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conexión con Firebase Firestore -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB14PmZWs0Yjlx2WEqqKoHyvEHrqTweCrA",
+            authDomain: "biometrico-empleados.firebaseapp.com",
+            projectId: "biometrico-empleados",
+            storageBucket: "biometrico-empleados.firebasestorage.app",
+            messagingSenderId: "669152231455",
+            appId: "1:669152231455:web:d2f7ae91e278eb854bd52a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const baseDeDatosEmpleados = {
+            "929068112": { nombre: "CARRION JARAMA GERMAN ALEJANDRO", ciudad: "CUENCA" },
+            "940387020": { nombre: "MENDOZA OLEAS NIXON BRYAN", ciudad: "GUAYAQUIL" },
+            "1722870332": { nombre: "MONCAYO RAMÍREZ JONATHAN ORLANDO", ciudad: "QUITO" },
+            "1751461383": { nombre: "SIMBAÑA YUPA CARLOS EDUARDO", ciudad: "QUITO" },
+            "1717109506": { nombre: "ZAMBRANO JAMA DANIEL ALEXANDER", ciudad: "GUAYAQUIL" }
+        };
+
+        window.horaEntradaGuardada = null; 
+        window.idDocumentoFirebase = null; 
+
+        window.mostrarAlerta = function(mensaje) {
+            document.getElementById('texto-modal').innerText = mensaje;
+            document.getElementById('modal-alerta').style.display = 'flex';
+        };
+
+        window.cerrarAlerta = function() {
+            document.getElementById('modal-alerta').style.display = 'none';
+        };
+
+        async function obtenerHoraDeLaWeb() {
+            try {
+                const respuesta = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=America/Guayaquil');
+                if (!respuesta.ok) throw new Error("Fallo en servidor");
+                const datos = await respuesta.json();
+                return new Date(datos.dateTime);
+            } catch (error) {
+                mostrarAlerta("Error de conexión al verificar la hora. Revise su internet.");
+                return null;
+            }
+        }
+
+        function milisegundosATexto(ms) {
+            let minutosTotales = Math.floor(ms / 60000);
+            let horas = Math.floor(minutosTotales / 60);
+            let minutos = minutosTotales % 60;
+            if (horas > 0) return horas + "h " + minutos + "m";
+            return minutos + "m";
+        }
+
+        function obtenerUbicacion() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) resolve("No soportado");
+                navigator.geolocation.getCurrentPosition(
+                    (posicion) => resolve(`<a href="https://www.google.com/maps?q=${posicion.coords.latitude},${posicion.coords.longitude}" target="_blank">📍 Ver en Mapa</a>`),
+                    (error) => resolve("Sin GPS"),
+                    { enableHighAccuracy: true }
+                );
+            });
+        }
+
+        window.procesarMarcacion = async function(tipo) {
+            const inputCedula = document.getElementById('cedula');
+            const cedulaValor = inputCedula.value.trim();
+
+            if (cedulaValor === "") {
+                mostrarAlerta("Por favor, ingrese su número de cédula.");
+                return;
+            }
+            
+            const datosEmpleado = baseDeDatosEmpleados[cedulaValor];
+            if (!datosEmpleado) {
+                mostrarAlerta("El número de cédula no se encuentra registrado en el sistema.");
+                return;
+            }
+
+            document.getElementById('btn-' + tipo).disabled = true;
+            
+            // NUEVO: La hora se consulta de manera directa, sin pasos de prueba
+            const horaSistema = await obtenerHoraDeLaWeb();
+
+            if (!horaSistema) {
+                document.getElementById('btn-' + tipo).disabled = false;
+                return;
+            }
+
+            const horaFormateada = horaSistema.toLocaleTimeString('es-ES', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            
+            const dia = String(horaSistema.getDate()).padStart(2, '0');
+            const mes = String(horaSistema.getMonth() + 1).padStart(2, '0');
+            const anio = horaSistema.getFullYear();
+            const fechaCorta = dia + "/" + mes + "/" + anio;
+
+            try {
+                const consulta = query(
+                    collection(db, "marcaciones"),
+                    where("cedula", "==", cedulaValor),
+                    where("fecha", "==", fechaCorta)
+                );
+                const resultadosConsulta = await getDocs(consulta);
+                
+                let registroExistente = null;
+                let idDocExistente = null;
+
+                resultadosConsulta.forEach((docSnap) => {
+                    registroExistente = docSnap.data();
+                    idDocExistente = docSnap.id;
+                });
+
+                if (registroExistente && registroExistente.horaSalida) {
+                    mostrarAlerta(`Estimado/a ${datosEmpleado.nombre}, ya marcaste tu entrada y salida el día de hoy. Tu jornada ha concluido.`);
+                    
+                    document.getElementById('txt-nombre').innerText = datosEmpleado.nombre;
+                    document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad;
+                    document.getElementById('txt-cedula').innerText = cedulaValor;
+                    document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
+                    document.getElementById('txt-hora-salida').innerText = registroExistente.horaSalida;
+                    
+                    if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
+                        document.getElementById('txt-atraso').innerText = registroExistente.atraso;
+                        document.getElementById('caja-atraso').style.display = "block";
+                    }
+
+                    document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
+                    document.getElementById('txt-ubicacion-salida').innerHTML = registroExistente.enlaceGoogleMapsSalida || "Sin mapa";
+                    
+                    if (registroExistente.tiempoTrabajado) {
+                        document.getElementById('txt-trabajado').innerText = registroExistente.tiempoTrabajado;
+                    }
+                    if (registroExistente.horasExtras && registroExistente.horasExtras !== "Ninguna") {
+                        document.getElementById('txt-extras').innerText = registroExistente.horasExtras;
+                        document.getElementById('caja-extras').style.display = "block";
+                    }
+                    
+                    document.getElementById('info-empleado').style.display = "block";
+                    document.getElementById('datos-salida').style.display = "block";
+                    document.getElementById('btn-entrada').style.display = "none";
+                    document.getElementById('btn-salida').style.display = "none";
+                    inputCedula.readOnly = true;
+                    inputCedula.style.backgroundColor = "#eee";
+                    return; 
+                }
+
+                if (tipo === 'entrada') {
+                    if (registroExistente) {
+                        mostrarAlerta(`Estimado/a ${datosEmpleado.nombre}, ya tienes una entrada registrada hoy a las ${registroExistente.horaEntrada}. Por favor marca solo tu salida.`);
+                        
+                        document.getElementById('txt-nombre').innerText = datosEmpleado.nombre;
+                        document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad;
+                        document.getElementById('txt-cedula').innerText = cedulaValor;
+                        document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
+                        
+                        if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
+                            document.getElementById('txt-atraso').innerText = registroExistente.atraso;
+                            document.getElementById('caja-atraso').style.display = "block";
+                        }
+
+                        document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
+                        
+                        document.getElementById('info-empleado').style.display = "block";
+                        document.getElementById('btn-entrada').style.display = "none";
+                        document.getElementById('btn-salida').style.display = "block";
+                        document.getElementById('btn-salida').disabled = false;
+                        
+                        inputCedula.readOnly = true;
+                        inputCedula.style.backgroundColor = "#eee";
+                        
+                        window.idDocumentoFirebase = idDocExistente;
+                        if (registroExistente.tiempoEntradaMs) {
+                            window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
+                        }
+                        return; 
+                    }
+                } 
+                else if (tipo === 'salida') {
+                    if (!registroExistente) {
+                        mostrarAlerta("No puedes marcar salida porque no tienes una entrada registrada el día de hoy.");
+                        document.getElementById('btn-salida').disabled = false;
+                        return;
+                    }
+                    
+                    window.idDocumentoFirebase = idDocExistente;
+                    if (registroExistente.tiempoEntradaMs) {
+                        window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
+                    }
+                    
+                    if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
+                        document.getElementById('txt-atraso').innerText = registroExistente.atraso;
+                        document.getElementById('caja-atraso').style.display = "block";
+                    }
+
+                    document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
+                    document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
+                }
+
+                document.getElementById('txt-ubicacion-' + tipo).innerText = "Obteniendo GPS...";
+                const enlaceUbicacion = await obtenerUbicacion();
+
+                document.getElementById('txt-nombre').innerText = datosEmpleado.nombre;
+                document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad;
+                document.getElementById('txt-cedula').innerText = cedulaValor;
+                document.getElementById('info-empleado').style.display = "block";
+
+                if (tipo === 'entrada') {
+                    window.horaEntradaGuardada = horaSistema;
+                    document.getElementById('txt-hora-entrada').innerText = horaFormateada;
+                    document.getElementById('txt-ubicacion-entrada').innerHTML = enlaceUbicacion;
+                    
+                    let textoAtraso = "A tiempo";
+                    const limiteEntrada = new Date(horaSistema);
+                    limiteEntrada.setHours(7, 30, 0, 0);
+
+                    if (horaSistema > limiteEntrada) {
+                        const diferenciaMs = horaSistema - limiteEntrada;
+                        textoAtraso = milisegundosATexto(diferenciaMs);
+                        document.getElementById('txt-atraso').innerText = textoAtraso;
+                        document.getElementById('caja-atraso').style.display = "block";
+                    }
+
+                    const nuevoRegistro = await addDoc(collection(db, "marcaciones"), {
+                        cedula: cedulaValor,
+                        nombre: datosEmpleado.nombre,
+                        ciudad: datosEmpleado.ciudad,
+                        fecha: fechaCorta,
+                        horaEntrada: horaFormateada,
+                        tiempoEntradaMs: horaSistema.getTime(), 
+                        atraso: textoAtraso,
+                        ubicacionEntrada: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'), 
+                        enlaceGoogleMapsEntrada: enlaceUbicacion,
+                        estado: "Trabajando"
+                    });
+                    
+                    window.idDocumentoFirebase = nuevoRegistro.id;
+
+                    document.getElementById('btn-entrada').style.display = "none";
+                    document.getElementById('btn-salida').style.display = "block";
+                    document.getElementById('btn-salida').disabled = false;
+                    inputCedula.readOnly = true; 
+                    inputCedula.style.backgroundColor = "#eee";
+
+                    mostrarAlerta("¡Entrada registrada con éxito!");
+
+                } else if (tipo === 'salida') {
+                    document.getElementById('txt-hora-salida').innerText = horaFormateada;
+                    document.getElementById('txt-ubicacion-salida').innerHTML = enlaceUbicacion;
+                    document.getElementById('datos-salida').style.display = "block";
+
+                    let tiempoTrabajado = "Falta registro";
+                    if (window.horaEntradaGuardada) {
+                        const tiempoTrabajadoMs = horaSistema - window.horaEntradaGuardada;
+                        tiempoTrabajado = milisegundosATexto(tiempoTrabajadoMs);
+                        document.getElementById('txt-trabajado').innerText = tiempoTrabajado;
+                    }
+
+                    let horasExtras = "Ninguna";
+                    const limiteSalida = new Date(horaSistema);
+                    limiteSalida.setHours(16, 30, 0, 0);
+
+                    if (horaSistema > limiteSalida) {
+                        const tiempoExtraMs = horaSistema - limiteSalida;
+                        horasExtras = milisegundosATexto(tiempoExtraMs);
+                        document.getElementById('txt-extras').innerText = horasExtras;
+                        document.getElementById('caja-extras').style.display = "block";
+                    }
+
+                    const referenciaDocumento = doc(db, "marcaciones", window.idDocumentoFirebase);
+                    await updateDoc(referenciaDocumento, {
+                        horaSalida: horaFormateada,
+                        tiempoTrabajado: tiempoTrabajado,
+                        horasExtras: horasExtras,
+                        ubicacionSalida: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'),
+                        enlaceGoogleMapsSalida: enlaceUbicacion,
+                        estado: "Turno Finalizado"
+                    });
+
+                    document.getElementById('btn-salida').style.display = "none";
+                    mostrarAlerta("¡Jornada finalizada y guardada en el sistema de manera exitosa!");
+                }
+            } catch (error) {
+                console.error("Error conectando a Firebase:", error);
+                mostrarAlerta("Ocurrió un error de conexión al guardar los datos. Inténtalo de nuevo.");
+                document.getElementById('btn-' + tipo).disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

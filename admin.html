@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background-color: #2c3e50; color: white;}
+        .panel { background: #34495e; padding: 40px; border-radius: 10px; max-width: 500px; margin: auto;}
+        .btn-reporte { padding: 15px 30px; font-size: 18px; color: white; background-color: #27ae60; border: none; border-radius: 8px; cursor: pointer; width: 100%;}
+        .btn-reporte:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        #mensaje-estado { margin-top: 20px; font-weight: bold; }
+    </style>
+    <!-- Librería para generar el Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <div class="panel">
+        <h2>Panel de Control</h2>
+        <p>Descarga la asistencia de todos los empleados en formato Excel.</p>
+        <br>
+        <!-- Aquí hemos eliminado el evento onclick antiguo y asignado el ID correcto -->
+        <button id="btn-descargar" class="btn-reporte">Descargar Reporte Excel</button>
+        <p id="mensaje-estado"></p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+        // Configuración real de tu proyecto en Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyB14PmZWs0Yjlx2WEqqKoHyvEHrqTweCrA",
+            authDomain: "biometrico-empleados.firebaseapp.com",
+            projectId: "biometrico-empleados",
+            storageBucket: "biometrico-empleados.firebasestorage.app",
+            messagingSenderId: "669152231455",
+            appId: "1:669152231455:web:d2f7ae91e278eb854bd52a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Este bloque ahora "escucha" el clic del botón directamente desde JavaScript
+        document.getElementById('btn-descargar').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-descargar');
+            const mensaje = document.getElementById('mensaje-estado');
+            
+            btn.disabled = true;
+            mensaje.innerText = "Conectando a la base de datos...";
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "marcaciones"));
+                const registrosExcel = [];
+
+                querySnapshot.forEach((doc) => {
+                    const datos = doc.data();
+                    
+                    const linkEntrada = datos.enlaceGoogleMapsEntrada ? datos.enlaceGoogleMapsEntrada.match(/href="([^"]*)/)[1] : "-";
+                    const linkSalida = datos.enlaceGoogleMapsSalida ? datos.enlaceGoogleMapsSalida.match(/href="([^"]*)/)[1] : "-";
+
+                    registrosExcel.push({
+                        "Fecha": datos.fecha,
+                        "Cédula": datos.cedula,
+                        "Nombres": datos.nombre,
+                        "Ciudad": datos.ciudad,
+                        "Entrada": datos.horaEntrada || "-",
+                        "Atraso": datos.atraso || "-",
+                        "Mapa Entrada": linkEntrada,
+                        "Salida": datos.horaSalida || "Sin marcar",
+                        "Trabajado": datos.tiempoTrabajado || "-",
+                        "Horas Extras": datos.horasExtras || "-",
+                        "Mapa Salida": linkSalida,
+                        "Estado": datos.estado
+                    });
+                });
+
+                if (registrosExcel.length === 0) {
+                    mensaje.innerText = "No hay registros guardados en la base de datos aún.";
+                    btn.disabled = false;
+                    return;
+                }
+
+                mensaje.innerText = "Generando archivo Excel...";
+
+                const hoja = XLSX.utils.json_to_sheet(registrosExcel);
+                const libro = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
+                
+                XLSX.writeFile(libro, "Reporte_Asistencia.xlsx");
+                
+                mensaje.innerText = "¡Excel generado y descargado con éxito!";
+                btn.disabled = false;
+
+            } catch (error) {
+                console.error("Error al generar el reporte:", error);
+                mensaje.innerText = "Hubo un error al descargar los datos. Revisa la consola.";
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
