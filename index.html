@@ -21,19 +21,11 @@
         a { color: #1976d2; text-decoration: none; font-weight: bold; }
         a:hover { text-decoration: underline; }
 
-        /* NUEVO: Estilos para el logotipo de la empresa */
-        .logo-empresa {
-            max-width: 120px;
-            height: auto;
-            margin-bottom: 15px;
-            border-radius: 8px;
-        }
+        .logo-empresa { max-width: 120px; height: auto; margin-bottom: 15px; border-radius: 8px; }
 
-        /* Estilos para la ventana flotante (Modal) */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); 
-            display: none; 
+            background: rgba(0, 0, 0, 0.6); display: none; 
             justify-content: center; align-items: center; z-index: 1000;
         }
         .modal-caja {
@@ -43,20 +35,13 @@
             animation: aparecer 0.3s ease-out;
         }
         .modal-caja p { font-size: 16px; color: #333; line-height: 1.5; margin-bottom: 20px; }
-        .btn-modal {
-            background-color: #3498db; color: white; padding: 10px 20px; font-size: 16px;
-            border: none; border-radius: 6px; cursor: pointer; width: 100%;
-        }
+        .btn-modal { background-color: #3498db; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; width: 100%; }
         .btn-modal:hover { background-color: #2980b9; }
-        @keyframes aparecer {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
+        @keyframes aparecer { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <!-- Ventana flotante de alertas -->
     <div id="modal-alerta" class="modal-overlay">
         <div class="modal-caja">
             <p id="texto-modal">Aquí va el mensaje...</p>
@@ -65,14 +50,10 @@
     </div>
 
     <div class="caja-formulario">
-        <!-- Etiqueta de imagen para  logotipo -->
-        <img src="logo_itsanet.jpg" alt="Logotipo de Itsanet" class="logo-empresa">
-        
+        <img src="logo_itsanet.png" alt="Logotipo de Itsanet" class="logo-empresa">
         <h2>Registro de Asistencia</h2>
-        
         <p>Ingrese su número de cédula:</p>
         <input type="number" id="cedula" placeholder="Ej: 1716151413">
-
         <button id="btn-entrada" class="btn btn-entrada" onclick="procesarMarcacion('entrada')">Marcar Entrada</button>
         <button id="btn-salida" class="btn btn-salida" onclick="procesarMarcacion('salida')">Marcar Salida</button>
 
@@ -80,6 +61,7 @@
             <p><strong>Nombre:</strong> <span id="txt-nombre"></span></p>
             <p><strong>Cédula:</strong> <span id="txt-cedula"></span></p>
             <p><strong>Ciudad:</strong> <span id="txt-ciudad"></span></p>
+            <p style="font-size:12px; color:#6b7280;">Horario asignado: <span id="txt-horario-asignado">07:30</span></p>
             <hr>
             <p><strong>Entrada:</strong> <span id="txt-hora-entrada"></span></p>
             <p id="caja-atraso" class="dato-oculto alerta-roja"><strong>Atraso:</strong> <span id="txt-atraso"></span></p>
@@ -95,30 +77,17 @@
         </div>
     </div>
 
-    <!-- Conexión con Firebase Firestore -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, updateDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, getDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyB14PmZWs0Yjlx2WEqqKoHyvEHrqTweCrA",
-            authDomain: "biometrico-empleados.firebaseapp.com",
-            projectId: "biometrico-empleados",
-            storageBucket: "biometrico-empleados.firebasestorage.app",
-            messagingSenderId: "669152231455",
-            appId: "1:669152231455:web:d2f7ae91e278eb854bd52a"
+            apiKey: "AIzaSyCyzE_spj6e0VASt5FP50_5m2Ya-GJloM4",
+            authDomain: "registro-bionetrico.firebaseapp.com",
+            projectId: "registro-bionetrico"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        const baseDeDatosEmpleados = {
-            "929068112": { nombre: "CARRION JARAMA GERMAN ALEJANDRO", ciudad: "CUENCA" },
-            "940387020": { nombre: "MENDOZA OLEAS NIXON BRYAN", ciudad: "GUAYAQUIL" },
-            "1722870332": { nombre: "MONCAYO RAMÍREZ JONATHAN ORLANDO", ciudad: "QUITO" },
-            "1751461383": { nombre: "SIMBAÑA YUPA CARLOS EDUARDO", ciudad: "QUITO" },
-            "1717109506": { nombre: "ZAMBRANO JAMA DANIEL ALEXANDER", ciudad: "GUAYAQUIL" }
-        };
 
         window.horaEntradaGuardada = null; 
         window.idDocumentoFirebase = null; 
@@ -127,10 +96,7 @@
             document.getElementById('texto-modal').innerText = mensaje;
             document.getElementById('modal-alerta').style.display = 'flex';
         };
-
-        window.cerrarAlerta = function() {
-            document.getElementById('modal-alerta').style.display = 'none';
-        };
+        window.cerrarAlerta = function() { document.getElementById('modal-alerta').style.display = 'none'; };
 
         async function obtenerHoraDeLaWeb() {
             try {
@@ -166,133 +132,84 @@
         window.procesarMarcacion = async function(tipo) {
             const inputCedula = document.getElementById('cedula');
             const cedulaValor = inputCedula.value.trim();
-
-            if (cedulaValor === "") {
-                mostrarAlerta("Por favor, ingrese su número de cédula.");
-                return;
-            }
+            if (cedulaValor === "") return mostrarAlerta("Por favor, ingrese su número de cédula.");
             
-            const datosEmpleado = baseDeDatosEmpleados[cedulaValor];
-            if (!datosEmpleado) {
-                mostrarAlerta("El número de cédula no se encuentra registrado en el sistema.");
-                return;
-            }
-
             document.getElementById('btn-' + tipo).disabled = true;
-            
-            // NUEVO: La hora se consulta de manera directa, sin pasos de prueba
-            const horaSistema = await obtenerHoraDeLaWeb();
-
-            if (!horaSistema) {
-                document.getElementById('btn-' + tipo).disabled = false;
-                return;
-            }
-
-            const horaFormateada = horaSistema.toLocaleTimeString('es-ES', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
-            
-            const dia = String(horaSistema.getDate()).padStart(2, '0');
-            const mes = String(horaSistema.getMonth() + 1).padStart(2, '0');
-            const anio = horaSistema.getFullYear();
-            const fechaCorta = dia + "/" + mes + "/" + anio;
 
             try {
-                const consulta = query(
-                    collection(db, "marcaciones"),
-                    where("cedula", "==", cedulaValor),
-                    where("fecha", "==", fechaCorta)
-                );
+                const refEmpleado = doc(db, "personal", cedulaValor);
+                const snapEmpleado = await getDoc(refEmpleado);
+
+                if (!snapEmpleado.exists()) {
+                    mostrarAlerta("El número de cédula no se encuentra registrado en el sistema.");
+                    document.getElementById('btn-' + tipo).disabled = false;
+                    return;
+                }
+
+                const datosEmpleado = snapEmpleado.data();
+                
+                // LÓGICA DE HORARIOS DINÁMICOS
+                const horaAsignadaStr = datosEmpleado.horaIngreso || "07:30";
+                const [hIng, mIng] = horaAsignadaStr.split(':').map(Number);
+                document.getElementById('txt-horario-asignado').innerText = horaAsignadaStr;
+                
+                const horaSistema = await obtenerHoraDeLaWeb();
+                if (!horaSistema) { document.getElementById('btn-' + tipo).disabled = false; return; }
+
+                const horaFormateada = horaSistema.toLocaleTimeString('es-ES', { hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                const fechaCorta = String(horaSistema.getDate()).padStart(2, '0') + "/" + String(horaSistema.getMonth() + 1).padStart(2, '0') + "/" + horaSistema.getFullYear();
+
+                const consulta = query(collection(db, "marcaciones"), where("cedula", "==", cedulaValor), where("fecha", "==", fechaCorta));
                 const resultadosConsulta = await getDocs(consulta);
                 
-                let registroExistente = null;
-                let idDocExistente = null;
-
-                resultadosConsulta.forEach((docSnap) => {
-                    registroExistente = docSnap.data();
-                    idDocExistente = docSnap.id;
-                });
+                let registroExistente = null; let idDocExistente = null;
+                resultadosConsulta.forEach((docSnap) => { registroExistente = docSnap.data(); idDocExistente = docSnap.id; });
 
                 if (registroExistente && registroExistente.horaSalida) {
                     mostrarAlerta(`Estimado/a ${datosEmpleado.nombre}, ya marcaste tu entrada y salida el día de hoy. Tu jornada ha concluido.`);
-                    
-                    document.getElementById('txt-nombre').innerText = datosEmpleado.nombre;
-                    document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad;
-                    document.getElementById('txt-cedula').innerText = cedulaValor;
-                    document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
-                    document.getElementById('txt-hora-salida').innerText = registroExistente.horaSalida;
+                    document.getElementById('txt-nombre').innerText = datosEmpleado.nombre; document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad; document.getElementById('txt-cedula').innerText = cedulaValor;
+                    document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada; document.getElementById('txt-hora-salida').innerText = registroExistente.horaSalida;
                     
                     if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
-                        document.getElementById('txt-atraso').innerText = registroExistente.atraso;
-                        document.getElementById('caja-atraso').style.display = "block";
+                        document.getElementById('txt-atraso').innerText = registroExistente.atraso; document.getElementById('caja-atraso').style.display = "block";
                     }
-
-                    document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
-                    document.getElementById('txt-ubicacion-salida').innerHTML = registroExistente.enlaceGoogleMapsSalida || "Sin mapa";
-                    
-                    if (registroExistente.tiempoTrabajado) {
-                        document.getElementById('txt-trabajado').innerText = registroExistente.tiempoTrabajado;
-                    }
+                    document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa"; document.getElementById('txt-ubicacion-salida').innerHTML = registroExistente.enlaceGoogleMapsSalida || "Sin mapa";
+                    if (registroExistente.tiempoTrabajado) document.getElementById('txt-trabajado').innerText = registroExistente.tiempoTrabajado;
                     if (registroExistente.horasExtras && registroExistente.horasExtras !== "Ninguna") {
-                        document.getElementById('txt-extras').innerText = registroExistente.horasExtras;
-                        document.getElementById('caja-extras').style.display = "block";
+                        document.getElementById('txt-extras').innerText = registroExistente.horasExtras; document.getElementById('caja-extras').style.display = "block";
                     }
                     
-                    document.getElementById('info-empleado').style.display = "block";
-                    document.getElementById('datos-salida').style.display = "block";
-                    document.getElementById('btn-entrada').style.display = "none";
-                    document.getElementById('btn-salida').style.display = "none";
-                    inputCedula.readOnly = true;
-                    inputCedula.style.backgroundColor = "#eee";
+                    document.getElementById('info-empleado').style.display = "block"; document.getElementById('datos-salida').style.display = "block";
+                    document.getElementById('btn-entrada').style.display = "none"; document.getElementById('btn-salida').style.display = "none";
+                    inputCedula.readOnly = true; inputCedula.style.backgroundColor = "#eee";
                     return; 
                 }
 
                 if (tipo === 'entrada') {
                     if (registroExistente) {
-                        mostrarAlerta(`Estimado/a ${datosEmpleado.nombre}, ya tienes una entrada registrada hoy a las ${registroExistente.horaEntrada}. Por favor marca solo tu salida.`);
-                        
-                        document.getElementById('txt-nombre').innerText = datosEmpleado.nombre;
-                        document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad;
-                        document.getElementById('txt-cedula').innerText = cedulaValor;
+                        mostrarAlerta(`Estimado/a ${datosEmpleado.nombre}, ya tienes una entrada registrada. Por favor marca solo tu salida.`);
+                        document.getElementById('txt-nombre').innerText = datosEmpleado.nombre; document.getElementById('txt-ciudad').innerText = datosEmpleado.ciudad; document.getElementById('txt-cedula').innerText = cedulaValor;
                         document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
-                        
                         if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
-                            document.getElementById('txt-atraso').innerText = registroExistente.atraso;
-                            document.getElementById('caja-atraso').style.display = "block";
+                            document.getElementById('txt-atraso').innerText = registroExistente.atraso; document.getElementById('caja-atraso').style.display = "block";
                         }
-
                         document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
-                        
-                        document.getElementById('info-empleado').style.display = "block";
-                        document.getElementById('btn-entrada').style.display = "none";
-                        document.getElementById('btn-salida').style.display = "block";
-                        document.getElementById('btn-salida').disabled = false;
-                        
-                        inputCedula.readOnly = true;
-                        inputCedula.style.backgroundColor = "#eee";
-                        
+                        document.getElementById('info-empleado').style.display = "block"; document.getElementById('btn-entrada').style.display = "none"; document.getElementById('btn-salida').style.display = "block"; document.getElementById('btn-salida').disabled = false;
+                        inputCedula.readOnly = true; inputCedula.style.backgroundColor = "#eee";
                         window.idDocumentoFirebase = idDocExistente;
-                        if (registroExistente.tiempoEntradaMs) {
-                            window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
-                        }
+                        if (registroExistente.tiempoEntradaMs) window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
                         return; 
                     }
                 } 
                 else if (tipo === 'salida') {
                     if (!registroExistente) {
-                        mostrarAlerta("No puedes marcar salida porque no tienes una entrada registrada el día de hoy.");
-                        document.getElementById('btn-salida').disabled = false;
-                        return;
+                        mostrarAlerta("No puedes marcar salida porque no tienes una entrada registrada el día de hoy."); document.getElementById('btn-salida').disabled = false; return;
                     }
-                    
                     window.idDocumentoFirebase = idDocExistente;
-                    if (registroExistente.tiempoEntradaMs) {
-                        window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
-                    }
-                    
+                    if (registroExistente.tiempoEntradaMs) window.horaEntradaGuardada = new Date(registroExistente.tiempoEntradaMs);
                     if (registroExistente.atraso && registroExistente.atraso !== "A tiempo") {
-                        document.getElementById('txt-atraso').innerText = registroExistente.atraso;
-                        document.getElementById('caja-atraso').style.display = "block";
+                        document.getElementById('txt-atraso').innerText = registroExistente.atraso; document.getElementById('caja-atraso').style.display = "block";
                     }
-
                     document.getElementById('txt-ubicacion-entrada').innerHTML = registroExistente.enlaceGoogleMapsEntrada || "Sin mapa";
                     document.getElementById('txt-hora-entrada').innerText = registroExistente.horaEntrada;
                 }
@@ -312,7 +229,7 @@
                     
                     let textoAtraso = "A tiempo";
                     const limiteEntrada = new Date(horaSistema);
-                    limiteEntrada.setHours(7, 30, 0, 0);
+                    limiteEntrada.setHours(hIng, mIng, 0, 0); // Limite dinámico de ingreso
 
                     if (horaSistema > limiteEntrada) {
                         const diferenciaMs = horaSistema - limiteEntrada;
@@ -322,26 +239,16 @@
                     }
 
                     const nuevoRegistro = await addDoc(collection(db, "marcaciones"), {
-                        cedula: cedulaValor,
-                        nombre: datosEmpleado.nombre,
-                        ciudad: datosEmpleado.ciudad,
-                        fecha: fechaCorta,
-                        horaEntrada: horaFormateada,
-                        tiempoEntradaMs: horaSistema.getTime(), 
+                        cedula: cedulaValor, nombre: datosEmpleado.nombre, ciudad: datosEmpleado.ciudad, fecha: fechaCorta,
+                        horaEntrada: horaFormateada, tiempoEntradaMs: horaSistema.getTime(), 
                         atraso: textoAtraso,
-                        ubicacionEntrada: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'), 
-                        enlaceGoogleMapsEntrada: enlaceUbicacion,
-                        estado: "Trabajando"
+                        ubicacionEntrada: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'), enlaceGoogleMapsEntrada: enlaceUbicacion,
+                        estado: "Trabajando", horarioAsignado: horaAsignadaStr
                     });
                     
                     window.idDocumentoFirebase = nuevoRegistro.id;
-
-                    document.getElementById('btn-entrada').style.display = "none";
-                    document.getElementById('btn-salida').style.display = "block";
-                    document.getElementById('btn-salida').disabled = false;
-                    inputCedula.readOnly = true; 
-                    inputCedula.style.backgroundColor = "#eee";
-
+                    document.getElementById('btn-entrada').style.display = "none"; document.getElementById('btn-salida').style.display = "block"; document.getElementById('btn-salida').disabled = false;
+                    inputCedula.readOnly = true; inputCedula.style.backgroundColor = "#eee";
                     mostrarAlerta("¡Entrada registrada con éxito!");
 
                 } else if (tipo === 'salida') {
@@ -358,7 +265,8 @@
 
                     let horasExtras = "Ninguna";
                     const limiteSalida = new Date(horaSistema);
-                    limiteSalida.setHours(16, 30, 0, 0);
+                    // Límite dinámico de salida: Hora de Ingreso + 9 horas de jornada estándar.
+                    limiteSalida.setHours(hIng + 9, mIng, 0, 0);
 
                     if (horaSistema > limiteSalida) {
                         const tiempoExtraMs = horaSistema - limiteSalida;
@@ -369,11 +277,8 @@
 
                     const referenciaDocumento = doc(db, "marcaciones", window.idDocumentoFirebase);
                     await updateDoc(referenciaDocumento, {
-                        horaSalida: horaFormateada,
-                        tiempoTrabajado: tiempoTrabajado,
-                        horasExtras: horasExtras,
-                        ubicacionSalida: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'),
-                        enlaceGoogleMapsSalida: enlaceUbicacion,
+                        horaSalida: horaFormateada, tiempoTrabajado: tiempoTrabajado, horasExtras: horasExtras,
+                        ubicacionSalida: enlaceUbicacion.replace(/<[^>]*>?/gm, 'Link Mapa'), enlaceGoogleMapsSalida: enlaceUbicacion,
                         estado: "Turno Finalizado"
                     });
 
@@ -382,7 +287,7 @@
                 }
             } catch (error) {
                 console.error("Error conectando a Firebase:", error);
-                mostrarAlerta("Ocurrió un error de conexión al guardar los datos. Inténtalo de nuevo.");
+                mostrarAlerta("Ocurrió un error de conexión al guardar los datos o buscar al empleado. Inténtalo de nuevo.");
                 document.getElementById('btn-' + tipo).disabled = false;
             }
         }
